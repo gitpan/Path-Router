@@ -21,4 +21,4 @@ no_index:
 requires:
   File::Spec::Unix: 0
   Moose: 0.46
-version: 0.01
+version: 0.02

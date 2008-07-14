@@ -1,7 +1,7 @@
 package Path::Router::Route;
 use Moose;
 
-our $VERSION   = '0.01';
+our $VERSION   = '0.02';
 our $AUTHORITY = 'cpan:STEVAN';
 
 use Path::Router::Types;
@@ -39,7 +39,7 @@ has 'components' => (
     is      => 'ro', 
     isa     => 'ArrayRef[Str]',
     lazy    => 1,
-    default => sub { [ split '/' => (shift)->path ] }
+    default => sub { [ grep {$_} split '/' => (shift)->path ] }
 );
 
 has 'length' => (
@@ -103,9 +103,12 @@ __END__
 
 Path::Router::Route - An object to represent a route
 
-=head1 SYNOPSIS
-
 =head1 DESCRIPTION
+
+This object is created by L<Path::Router> when you call the 
+C<add_route> method. In general you won't ever create these objects
+directly, they will be created for you and you may sometimes
+introspect them.
 
 =head1 METHODS
 
