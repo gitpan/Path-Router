@@ -1,7 +1,7 @@
 package Path::Router;
 use Moose;
 
-our $VERSION   = '0.03';
+our $VERSION   = '0.04';
 our $AUTHORITY = 'cpan:STEVAN';
 
 use File::Spec::Unix ();
@@ -200,6 +200,7 @@ sub uri_for {
         
     }
     
+    return undef;
 }
 
 no Moose; 1;
@@ -321,7 +322,14 @@ It is in Perl :)
 
 =item B<match ($path)>
 
-=item B<uri_for (%path_descriptior)>
+Return a L<Path::Router::Route::Match> object for the first route that matches the
+given C<$path>, or C<undef> if no routes match.
+
+=item B<uri_for (%path_descriptor)>
+
+Find the path that, when passed to C<< $router->match >>, would produce the
+given arguments.  Returns the path without any leading C</>.  Returns C<undef>
+if no routes match.
 
 =item B<meta>
 
