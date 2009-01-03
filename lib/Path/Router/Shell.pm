@@ -4,7 +4,7 @@ use Moose;
 use Term::ReadLine;
 use Data::Dumper;
 
-our $VERSION   = '0.04';
+our $VERSION   = '0.05';
 our $AUTHORITY = 'cpan:STEVAN';
 
 has 'router' => (
@@ -33,6 +33,8 @@ sub shell {
         $term->addhistory($_) if /\S/;
     }
 }
+
+__PACKAGE__->meta->make_immutable;
 
 no Moose; 1
 

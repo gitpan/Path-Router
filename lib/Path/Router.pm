@@ -1,7 +1,7 @@
 package Path::Router;
 use Moose;
 
-our $VERSION   = '0.04';
+our $VERSION   = '0.05';
 our $AUTHORITY = 'cpan:STEVAN';
 
 use File::Spec::Unix ();
@@ -124,13 +124,34 @@ sub uri_for {
             
             my %reverse_url_map = reverse %url_map;
 
-            warn "> Attempting to match ", $route->path, " to (", (join " / " => @keys), ")" if $DEBUG;                
-            
+            my %required = map {
+                $route->get_component_name($_) => 1
+            } grep { 
+                $route->is_component_variable($_) &&
+                ! $route->is_component_optional($_)
+            } @{ $route->components };
+
+            my %optional = map { 
+                $route->get_component_name($_) => 1
+            } grep {
+                $route->is_component_variable($_) &&
+                $route->is_component_optional($_)
+            } @{ $route->components };
+
+            @optional{ keys %{$route->defaults} } =
+                (1) x keys %{$route->defaults};
+
+            delete @optional{keys %required};
+
+            if ($DEBUG) {
+                warn "> Attempting to match ", $route->path, " to (", (join " / " => @keys), ")";
+                warn "@keys -> [ @{[ keys %required ]} ], [ @{[ keys %optional ]} ]";
+            }
             (
-                scalar @keys == $route->length ||
-                scalar @keys == $route->length_with_defaults_and_validations
+                @keys >= keys(%required) &&
+                @keys <= (keys(%required) + keys(%optional))
             ) || die "LENGTH DID NOT MATCH\n";
-            
+
             my @components = @{$route->components};
         
             foreach my $i (0 .. $#components) {  
@@ -150,9 +171,11 @@ sub uri_for {
                     }
 
                     push @url => $url_map{$name}
-                        unless $route->is_component_optional($components[$i]) && 
-                               $route->defaults->{$name}                      &&
-                               $route->defaults->{$name} eq $url_map{$name};
+                        unless
+                        $route->is_component_optional($components[$i]) && 
+                        $route->defaults->{$name}                      &&
+                        defined $url_map{$name}                        &&
+                        $route->defaults->{$name} eq $url_map{$name};
                     
                     warn "\t\t... removing $name from url map" if $DEBUG;
                     
@@ -162,12 +185,6 @@ sub uri_for {
                     warn "\t\t... found a constant (", $components[$i], ")" if $DEBUG;
                     
                     push @url => $components[$i];
-                    
-                    warn "\t\t... removing constant ", $components[$i], " at key ", $reverse_url_map{$components[$i]}, " from url map" if $DEBUG;
-                    
-                    delete $url_map{$reverse_url_map{$components[$i]}}
-                        if $reverse_url_map{$components[$i]};                        
-                        
                 }                    
                 
                 warn "+++ URL so far ... ", (join "/" => @url) if $DEBUG;
@@ -202,6 +219,8 @@ sub uri_for {
     
     return undef;
 }
+
+__PACKAGE__->meta->make_immutable;
 
 no Moose; 1;
 

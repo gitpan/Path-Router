@@ -1,7 +1,7 @@
 package Path::Router::Route::Match;
 use Moose;
 
-our $VERSION   = '0.04';
+our $VERSION   = '0.05';
 our $AUTHORITY = 'cpan:STEVAN';
 
 has 'path'    => (is => 'ro', isa => 'Str',     required => 1);
@@ -13,6 +13,8 @@ has 'route'   => (
     required => 1,
     handles  => [qw[target]]
 );
+
+__PACKAGE__->meta->make_immutable;
 
 no Moose; 1;
 
@@ -33,6 +35,8 @@ dispatching nessecary.
 =head1 METHODS 
 
 =over 4
+
+=item B<new>
 
 =item B<path>
 

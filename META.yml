@@ -23,4 +23,4 @@ requires:
   Moose: 0.46
 resources:
   license: http://dev.perl.org/licenses/
-version: 0.04
+version: 0.05

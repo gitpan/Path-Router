@@ -1,7 +1,7 @@
 package Path::Router::Route;
 use Moose;
 
-our $VERSION   = '0.04';
+our $VERSION   = '0.05';
 our $AUTHORITY = 'cpan:STEVAN';
 
 use Path::Router::Types;
@@ -46,7 +46,7 @@ has 'length' => (
     is      => 'ro', 
     isa     => 'Int',
     lazy    => 1,
-    default => sub { scalar @{(shift)->components} }
+    default => sub { scalar @{(shift)->components} },
 );
 
 has 'target' => (is => 'ro', isa => 'Any', predicate => 'has_target');
@@ -88,10 +88,7 @@ sub length_without_optionals {
     scalar grep { !$self->is_component_optional($_) } @{$self->components}
 }
 
-sub length_with_defaults_and_validations {
-    my $self = shift;
-    (scalar keys %{$self->defaults}) + (scalar keys %{$self->validations})
-}
+__PACKAGE__->meta->make_immutable;
 
 no Moose; 1
 
@@ -159,8 +156,6 @@ introspect them.
 =head2 Length methods
 
 =over 4
-
-=item B<length_with_defaults_and_validations>
 
 =item B<length_without_optionals>
 
