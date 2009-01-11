@@ -1,7 +1,7 @@
 package Path::Router;
 use Moose;
 
-our $VERSION   = '0.05';
+our $VERSION   = '0.06';
 our $AUTHORITY = 'cpan:STEVAN';
 
 use File::Spec::Unix ();
@@ -47,8 +47,8 @@ sub match {
             
             # they must be the same length
             (
-                scalar(@parts) == $route->length ||
-                scalar(@parts) == $route->length_without_optionals
+                scalar(@parts) >= $route->length_without_optionals &&
+                scalar(@parts) <= $route->length 
             ) || die "LENGTHS DID NOT MATCH\n";
                 
             warn "\t... They are the same length" if $DEBUG;
@@ -113,9 +113,12 @@ sub match {
 
 sub uri_for {
     my ($self, %orig_url_map) = @_;
-    
-    my @keys = keys %orig_url_map;
 
+    # anything => undef is useless; ignore it and let the defaults override it
+    for (keys %orig_url_map) {
+        delete $orig_url_map{$_} unless defined $orig_url_map{$_};
+    }
+    
     foreach my $route (@{$self->routes}) {
         my @url;
         eval {
@@ -124,86 +127,77 @@ sub uri_for {
             
             my %reverse_url_map = reverse %url_map;
 
-            my %required = map {
-                $route->get_component_name($_) => 1
-            } grep { 
-                $route->is_component_variable($_) &&
-                ! $route->is_component_optional($_)
-            } @{ $route->components };
+            my %required = map {( $_ => 1 )}
+                @{ $route->required_variable_component_names };
 
-            my %optional = map { 
-                $route->get_component_name($_) => 1
-            } grep {
-                $route->is_component_variable($_) &&
-                $route->is_component_optional($_)
-            } @{ $route->components };
+            my %optional = map {( $_ => 1 )}
+                @{ $route->optional_variable_component_names };
 
-            @optional{ keys %{$route->defaults} } =
-                (1) x keys %{$route->defaults};
+            my %url_defaults;
 
-            delete @optional{keys %required};
+            my %match = %{$route->defaults || {}};
+
+            for my $component (keys(%required), keys(%optional)) {
+                next unless exists $match{$component};
+                $url_defaults{$component} = delete $match{$component};
+            }
+            # any remaining keys in %defaults are 'extra' -- they don't appear
+            # in the url, so they need to match exactly rather than being
+            # filled in
+
+            %url_map = (%url_defaults, %url_map);
+
+            my @keys = keys %url_map;
 
             if ($DEBUG) {
                 warn "> Attempting to match ", $route->path, " to (", (join " / " => @keys), ")";
-                warn "@keys -> [ @{[ keys %required ]} ], [ @{[ keys %optional ]} ]";
             }
             (
                 @keys >= keys(%required) &&
-                @keys <= (keys(%required) + keys(%optional))
+                @keys <= (keys(%required) + keys(%optional) + keys(%match))
             ) || die "LENGTH DID NOT MATCH\n";
 
-            my @components = @{$route->components};
-        
-            foreach my $i (0 .. $#components) {  
-                
-                # if it is a variable (starts with a colon)
-                if ($route->is_component_variable($components[$i])) {
-                    my $name = $route->get_component_name($components[$i]);
-                    
-                    unless (exists $url_map{$name}) {
-                        
-                        unless ($route->has_defaults && exists $route->defaults->{$name}) {
-                            # NOTE:
-                            # this will all get cleaned up in the end
-                            die "MISSING ITEM\n"
-                        }
-                        
-                    }
+            if (my @missing = grep { ! exists $url_map{$_} } keys %required) {
+                warn "missing: @missing" if $DEBUG;
+                die "MISSING ITEM [@missing]\n";
+            }
 
+            if (my @extra = grep {
+                    ! $required{$_} && ! $optional{$_} && ! $match{$_}
+                } keys %url_map) {
+                warn "extra: @extra" if $DEBUG;
+                die "EXTRA ITEM [@extra]\n";
+            }
+
+            if (my @nomatch = grep {
+                    exists $url_map{$_} and $url_map{$_} ne $match{$_}
+                } keys %match) {
+                warn "no match: @nomatch" if $DEBUG;
+                die "NO MATCH [@nomatch]\n";
+            }
+
+            for my $component (@{$route->components}) {
+                if ($route->is_component_variable($component)) {
+                    warn "\t\t... found a variable ($component)" if $DEBUG;
+                    my $name = $route->get_component_name($component);
+                    
                     push @url => $url_map{$name}
                         unless
-                        $route->is_component_optional($components[$i]) && 
-                        $route->defaults->{$name}                      &&
-                        defined $url_map{$name}                        &&
+                        $route->is_component_optional($component) && 
+                        $route->defaults->{$name}                 &&
                         $route->defaults->{$name} eq $url_map{$name};
                     
-                    warn "\t\t... removing $name from url map" if $DEBUG;
-                    
-                    delete $url_map{$name};
                 }
+
                 else {
-                    warn "\t\t... found a constant (", $components[$i], ")" if $DEBUG;
+                    warn "\t\t... found a constant ($component)" if $DEBUG;
                     
-                    push @url => $components[$i];
+                    push @url => $component;
                 }                    
                 
                 warn "+++ URL so far ... ", (join "/" => @url) if $DEBUG;
             }
             
-            warn "Remaining keys ", (join ", " => keys %url_map) if $DEBUG;  
-            
-            foreach my $remaining_key (keys %url_map) {
-                # some keys will not be in the URL, but 
-                # we want to make sure they are a correct 
-                # match for the URL
-                if (exists $route->defaults->{$remaining_key} && 
-                    $route->defaults->{$remaining_key} eq $url_map{$remaining_key}) {
-                        
-                    delete $url_map{$remaining_key};
-                }
-            }
-            
-            (scalar keys %url_map == 0) || die "NOT ALL KEYS EXHAUSTED\n";
         };
         unless ($@) {
             return join "/" => @url;
