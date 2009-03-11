@@ -8,7 +8,7 @@ use Test::Deep    ();
 use Data::Dumper  ();
 use Sub::Exporter;
 
-our $VERSION   = '0.06';
+our $VERSION   = '0.07';
 our $AUTHORITY = 'cpan:STEVAN';
 
 my @exports = qw/
@@ -48,6 +48,8 @@ sub routes_ok {
 
         my $match = $router->match($path);
         my $generated_mapping = $match && $match->mapping;
+
+        $Test->ok( $match->path eq $path, "matched path and requested paths match" );
 
         # the path supplied produces the
         # same match as the hash supplied
@@ -263,7 +265,7 @@ Stevan Little E<lt>stevan.little@iinteractive.comE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2008 Infinity Interactive, Inc.
+Copyright 2008-2009 Infinity Interactive, Inc.
 
 L<http://www.iinteractive.com>
 
