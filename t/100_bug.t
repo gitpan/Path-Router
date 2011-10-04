@@ -3,27 +3,27 @@
 use strict;
 use warnings;
 
-use Test::More tests => 4;
+use Test::More;
 use Test::Path::Router;
 use Path::Router;
 
 my $router = Path::Router->new;
 
 $router->add_route('/wiki/?:page' => (
-    defaults => { 
-        controller => 'wiki', 
+    defaults => {
+        controller => 'wiki',
         page       => 'HomePage',
     }
 ));
 
 $router->add_route('/css/:style' => (
-    defaults => { 
-        controller => 'css' 
+    defaults => {
+        controller => 'css'
     }
 ));
 
 is(
-    $router->uri_for(page => 'whatever'), 
+    $router->uri_for(page => 'whatever'),
     'wiki/whatever',
     '... got the right URI'
 );
@@ -45,3 +45,5 @@ is(
     'wiki',
     'defaults correctly excluded (no trailing slash)',
 );
+
+done_testing;

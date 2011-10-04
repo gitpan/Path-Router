@@ -3,12 +3,10 @@
 use strict;
 use warnings;
 
-use Test::More tests => 8;
+use Test::More;
 use Test::Path::Router;
 
-BEGIN {
-    use_ok('Path::Router');
-}
+use Path::Router;
 
 my $INDEX     = bless {} => 'Blog::Index';
 my $SHOW_DATE = bless {} => 'Blog::ShowDate';
@@ -30,12 +28,12 @@ $router->add_route('blog' => (
 $router->add_route('blog/:year/:month/:day' => (
     defaults       => {
         controller => 'blog',
-        action     => 'show_date',      
-    }, 
+        action     => 'show_date',
+    },
     validations => {
         year    => qr/\d{4}/,
         month   => qr/\d{1,2}/,
-        day     => qr/\d{1,2}/,    
+        day     => qr/\d{1,2}/,
     },
     target => $SHOW_DATE,
 ));
@@ -43,10 +41,10 @@ $router->add_route('blog/:year/:month/:day' => (
 $router->add_route('blog/:action/:id' => (
     defaults       => {
         controller => 'blog',
-    }, 
+    },
     validations => {
-        action  => qr/\D+/,       
-        id      => qr/\d+/    
+        action  => qr/\D+/,
+        id      => qr/\d+/
     },
     target => $GENERAL
 ));
@@ -70,4 +68,4 @@ $router->add_route('blog/:action/:id' => (
     is($match->route->target, $GENERAL, '... got the right target');
 }
 
-1;
+done_testing;

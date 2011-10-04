@@ -1,4 +1,11 @@
 package Test::Path::Router;
+BEGIN {
+  $Test::Path::Router::AUTHORITY = 'cpan:STEVAN';
+}
+{
+  $Test::Path::Router::VERSION = '0.11';
+}
+# ABSTRACT: A testing module for testing routes
 
 use strict;
 use warnings;
@@ -7,9 +14,6 @@ use Test::Builder ();
 use Test::Deep    ();
 use Data::Dumper  ();
 use Sub::Exporter;
-
-our $VERSION   = '0.10';
-our $AUTHORITY = 'cpan:STEVAN';
 
 my @exports = qw/
     routes_ok
@@ -161,13 +165,17 @@ sub _dump_mapping_info {
 
 1;
 
-__END__
+
 
 =pod
 
 =head1 NAME
 
 Test::Path::Router - A testing module for testing routes
+
+=head1 VERSION
+
+version 0.11
 
 =head1 SYNOPSIS
 
@@ -272,4 +280,19 @@ L<http://www.iinteractive.com>
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
 
+=head1 AUTHOR
+
+Stevan Little <stevan@iinteractive.com>
+
+=head1 COPYRIGHT AND LICENSE
+
+This software is copyright (c) 2011 by Infinity Interactive.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+
 =cut
+
+
+__END__
+

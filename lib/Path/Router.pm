@@ -1,10 +1,16 @@
 package Path::Router;
+BEGIN {
+  $Path::Router::AUTHORITY = 'cpan:STEVAN';
+}
+{
+  $Path::Router::VERSION = '0.11';
+}
 use Moose;
+# ABSTRACT: A tool for routing paths
 
-our $VERSION   = '0.10';
-our $AUTHORITY = 'cpan:STEVAN';
-
+use Eval::Closure;
 use File::Spec::Unix ();
+use Try::Tiny;
 
 use Path::Router::Types;
 use Path::Router::Route;
@@ -47,19 +53,29 @@ sub _build_match_code {
         push @code, $route->generate_match_code($i++);
     }
 
-    my $code = "sub {\n" .
-        "#line " . __LINE__ . ' "' . __FILE__ . "\"\n" .
-        "   my \$self = shift;\n" .
-        "   my \$path = shift;\n" .
-        "   my \$routes = \$self->routes;\n" .
-        join("\n", @code) .
-        "#line " . __LINE__ . ' "' . __FILE__ . "\"\n" .
-        "   print STDERR \"match failed\\n\" if DEBUG();\n" .
-        "   return ();\n" .
-        "}"
-    ;
-    # print STDERR $code;
-    eval $code or warn $@;
+    return eval_closure(
+        source => [
+            'sub {',
+                '#line ' . __LINE__ . ' "' . __FILE__ . '"',
+                'my $self = shift;',
+                'my $path = shift;',
+                'my $routes = $self->routes;',
+                'my @matches;',
+                @code,
+                '#line ' . __LINE__ . ' "' . __FILE__ . '"',
+                'if (@matches == 0) {',
+                    'print STDERR "match failed\n" if Path::Router::DEBUG();',
+                    'return;',
+                '}',
+                'elsif (@matches == 1) {',
+                    'return $matches[0];',
+                '}',
+                'else {',
+                    'return $self->_disambiguate_matches($path, @matches);',
+                '}',
+            '}',
+        ]
+    );
 }
 
 sub add_route {
@@ -95,7 +111,7 @@ sub include_router {
     my ($self, $path, $router) = @_;
 
     ($path eq '' || $path =~ /\/$/)
-        || confess "Path is either empty of ends with a /";
+        || confess "Path is either empty or does not end with /";
 
     push @{ $self->routes } => map {
             $_->clone( path => ($path . $_->path) )
@@ -105,27 +121,48 @@ sub include_router {
 
 sub match {
     my ($self, $url) = @_;
+    $url = File::Spec::Unix->canonpath($url);
+    $url =~ s|^/||; # Path::Router specific. remove first /
 
     if ($self->inline) {
-        $url =~ s|/{2,}|/|g;                          # xx////xx  -> xx/xx
-        $url =~ s{(?:/\.)+(?:/|\z)}{/}g;              # xx/././xx -> xx/xx
-        $url =~ s|^(?:\./)+||s unless $url eq "./";   # ./xx      -> xx
-        $url =~ s|^/(?:\.\./)+|/|;                    # /../../xx -> xx
-        $url =~ s|^/\.\.$|/|;                         # /..       -> /
-        $url =~ s|/\z|| unless $url eq "/";           # xx/       -> xx
-        $url =~ s|^/||; # Path::Router specific. remove first /
-
         return $self->match_code->($self, $url);
     } else {
-        my @parts = grep { defined $_ and length $_ }
-            split '/' => File::Spec::Unix->canonpath($url);
+        my @parts = split '/' => $url;
 
+        my @matches;
         for my $route (@{$self->routes}) {
             my $match = $route->match(\@parts) or next;
-            return $match;
+            push @matches, $match;
         }
+        return             if @matches == 0;
+        return $matches[0] if @matches == 1;
+        return $self->_disambiguate_matches($url, @matches);
     }
     return;
+}
+
+sub _disambiguate_matches {
+    my $self = shift;
+    my ($path, @matches) = @_;
+
+    my $min;
+    my @found;
+    for my $match (@matches) {
+        my $vars = @{ $match->route->required_variable_component_names };
+        if (!defined($min) || $vars < $min) {
+            @found = ($match);
+            $min = $vars;
+        }
+        elsif ($vars == $min) {
+            push @found, $match;
+        }
+    }
+
+    confess "Ambiguous match: path $path could match any of "
+      . join(', ', sort map { $_->route->path } @found)
+        if @found > 1;
+
+    return $found[0];
 }
 
 sub uri_for {
@@ -136,13 +173,12 @@ sub uri_for {
         delete $orig_url_map{$_} unless defined $orig_url_map{$_};
     }
 
+    my @possible;
     foreach my $route (@{$self->routes}) {
         my @url;
-        eval {
+        my $url = try {
 
             my %url_map = %orig_url_map;
-
-            my %reverse_url_map = reverse %url_map;
 
             my %required = map {( $_ => 1 )}
                 @{ $route->required_variable_component_names };
@@ -215,33 +251,88 @@ sub uri_for {
                 warn "+++ URL so far ... ", (join "/" => @url) if DEBUG;
             }
 
-        };
-        unless ($@) {
             return join "/" => grep { defined } @url;
         }
-        else {
+        catch {
             do {
                 warn join "/" => @url;
-                warn "... ", $@;
+                warn "... ", $_;
             } if DEBUG;
-        }
 
+            return;
+        };
+
+        push @possible, [$route, $url] if defined $url;
     }
 
-    return undef;
+    return undef unless @possible;
+    return $possible[0][1] if @possible == 1;
+
+    my @found;
+    my $min;
+    for my $possible (@possible) {
+        my ($route, $url) = @$possible;
+
+        my %url_map = %orig_url_map;
+
+        my %required = map {( $_ => 1 )}
+            @{ $route->required_variable_component_names };
+
+        my %optional = map {( $_ => 1 )}
+            @{ $route->optional_variable_component_names };
+
+        my %url_defaults;
+
+        my %match = %{$route->defaults || {}};
+
+        for my $component (keys(%required), keys(%optional)) {
+            next unless exists $match{$component};
+            $url_defaults{$component} = delete $match{$component};
+        }
+        # any remaining keys in %defaults are 'extra' -- they don't appear
+        # in the url, so they need to match exactly rather than being
+        # filled in
+
+        %url_map = (%url_defaults, %url_map);
+
+        my %wanted = (%required, %optional, %match);
+        delete $wanted{$_} for keys %url_map;
+
+        my $extra = keys %wanted;
+
+        if (!defined($min) || $extra < $min) {
+            @found = ($possible);
+            $min = $extra;
+        }
+        elsif ($extra == $min) {
+            push @found, $possible;
+        }
+    }
+
+    confess "Ambiguous path descriptor (specified keys "
+      . join(', ', sort keys(%orig_url_map))
+      . "): could match paths "
+      . join(', ', sort map { $_->path } map { $_->[0] } @found)
+        if @found > 1;
+
+    return $found[0][1];
 }
 
 __PACKAGE__->meta->make_immutable;
 
 no Moose; 1;
 
-__END__
+
 
 =pod
 
 =head1 NAME
 
 Path::Router - A tool for routing paths
+
+=head1 VERSION
+
+version 0.11
 
 =head1 SYNOPSIS
 
@@ -422,4 +513,21 @@ L<http://www.iinteractive.com>
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
 
+=for Pod::Coverage DEBUG
+
+=head1 AUTHOR
+
+Stevan Little <stevan@iinteractive.com>
+
+=head1 COPYRIGHT AND LICENSE
+
+This software is copyright (c) 2011 by Infinity Interactive.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+
 =cut
+
+
+__END__
+

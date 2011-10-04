@@ -1,9 +1,15 @@
 package Path::Router::Route;
+BEGIN {
+  $Path::Router::Route::AUTHORITY = 'cpan:STEVAN';
+}
+{
+  $Path::Router::Route::VERSION = '0.11';
+}
 use Moose;
+# ABSTRACT: An object to represent a route
 
-our $VERSION   = '0.10';
-our $AUTHORITY = 'cpan:STEVAN';
-
+use B;
+use Carp qw(cluck);
 use Path::Router::Types;
 
 with 'MooseX::Clone';
@@ -88,6 +94,24 @@ has 'target' => (
     isa       => 'Any',
     predicate => 'has_target'
 );
+
+sub BUILD {
+    my $self = shift;
+
+    return unless $self->has_validations;
+
+    my %components = map { $self->get_component_name($_) => 1 }
+                     grep { $self->is_component_variable($_) }
+                     @{ $self->components };
+
+    for my $validation (keys %{ $self->validations }) {
+        if (!exists $components{$validation}) {
+            cluck "Validation provided for component :$validation, but the"
+                . " path " . $self->path . " doesn't contain a variable"
+                . " component with that name";
+        }
+    }
+}
 
 sub _build_required_variable_component_names {
     my $self = shift;
@@ -213,90 +237,108 @@ sub generate_match_code {
         $regexp = "(?:$piece$regexp)";
     }
 
-    my $code = "#line " . __LINE__ . ' "' . __FILE__ . "\"\n" .
-        "print STDERR \"Attempting to match " . $self->path . " against \$path\\n\" if Path::Router::DEBUG();\n" .
-        "print STDERR \"   regexp is $regexp\\n\" if Path::Router::DEBUG();\n" .
-        "if (\$path =~ /^$regexp\$/) {\n" .
-        "    # " . $self->path . "\n"
-    ;
+    my @code;
+
+    push @code, (
+        '#line ' . __LINE__ . ' "' . __FILE__ . '"',
+        'print STDERR "Attempting to match ' . $self->path . ' against $path"',
+            'if Path::Router::DEBUG();',
+        'print STDERR "   regexp is " . ' . B::perlstring($regexp),
+            'if Path::Router::DEBUG();',
+        'if ($path =~ /^' . $regexp . '$/) {',
+            '# ' . $self->path,
+    );
+
     if (@variables) {
-        $code .= "    my %captures = (\n";
+        push @code, (
+                'my %captures = (',
+        );
         foreach my $i (0..$#variables) {
             my $name = $variables[$i];
             $name =~ s/'/\\'/g;
-            $code .= "        '$name' => \$" . ($i + 1) . " || '',\n";
+            push @code, (
+                        B::perlstring($name) . ' => $' . ($i + 1) . ' || "",',
+            );
         }
-        $code .= "    );\n";
+        push @code, (
+                ');',
+        );
     }
-    $code .=
-        "    my \$route = \$routes->[$pos];\n" .
-        "    my \$valid = 1;\n"
-    ;
-    ;
+    push @code, (
+            'my $route = $routes->[' . $pos . '];',
+            'my $valid = 1;',
+    );
+
     if ($self->has_defaults) {
-        $code .=
-            "    my \$mapping = \$route->create_default_mapping;\n";
-        ;
+        push @code, (
+                'my $mapping = $route->create_default_mapping;',
+        );
     } else {
-        $code .=
-            "    my \$mapping =  {};\n"
-        ;
+        push @code, (
+                'my $mapping = {};',
+        );
     }
 
     if (@variables) {
-        $code .=
-            "    my \$validations = \$route->validations;\n" .
-            "    while(my(\$key, \$value) = each \%captures) {\n" .
-            "        next unless defined \$value && length \$value;\n"
-        ;
+        push @code, (
+                'my $validations = $route->validations;',
+                'while (my ($key, $value) = each %captures) {',
+                    'next unless defined $value && length $value;',
+        );
 
         my $if = "if";
         foreach my $v (@variables) {
             if ($self->has_validation_for($v)) {
-                $code .=
-                    "        $if (\$key eq '$v') {\n" .
-                    "            my \$v = \$validations->{$v};\n" .
-                    "            if (! \$v->check(\$value)) {\n" .
-                    "                print STDERR \"$v failed validation\\n\" if Path::Router::DEBUG;\n" .
-                    "                \$valid = 0;\n" .
-                    "            }\n" .
-                    "        }\n"
-                ;
+                my $vstr = B::perlstring($v);
+                push @code, (
+                            $if . ' ($key eq ' . $vstr . ') {',
+                                'my $v = $validations->{' . $vstr . '};',
+                                'if (!$v->check($value)) {',
+                                    'print STDERR ' . $vstr . ' . " failed validation\n"',
+                                        'if Path::Router::DEBUG();',
+                                    '$valid = 0;',
+                                '}',
+                            '}',
+                );
                 $if = "elsif";
             }
         }
 
-        $code .=
-            "        \$mapping->{\$key} = \$value;\n" .
-            "    }\n"
-        ;
+        push @code, (
+                    '$mapping->{$key} = $value;',
+                '}',
+        );
     }
-    $code .=
-        "    if (\$valid) {\n" .
-        "        print STDERR \"match success\\n\" if Path::Router::DEBUG();\n" .
-        "        return bless({\n" .
-        "            path => \$path,\n" .
-        "            route => \$route,\n" .
-        "            mapping => \$mapping,\n" .
-        "        }, 'Path::Router::Route::Match');\n" .
-        "    }\n" .
-        "}\n"
-    ;
+    push @code, (
+            'if ($valid) {',
+                'print STDERR "match success\n" if Path::Router::DEBUG();',
+                'push @matches, bless({',
+                    'path    => $path,',
+                    'route   => $route,',
+                    'mapping => $mapping,',
+                '}, "Path::Router::Route::Match")',
+            '}',
+        '}',
+    );
 
-    return $code;
+    return @code;
 }
 
 __PACKAGE__->meta->make_immutable;
 
-no Moose; 1
+no Moose; 1;
 
-__END__
+
 
 =pod
 
 =head1 NAME
 
 Path::Router::Route - An object to represent a route
+
+=head1 VERSION
+
+version 0.11
 
 =head1 DESCRIPTION
 
@@ -390,4 +432,21 @@ L<http://www.iinteractive.com>
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
 
+=for Pod::Coverage BUILD
+
+=head1 AUTHOR
+
+Stevan Little <stevan@iinteractive.com>
+
+=head1 COPYRIGHT AND LICENSE
+
+This software is copyright (c) 2011 by Infinity Interactive.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+
 =cut
+
+
+__END__
+

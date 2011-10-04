@@ -3,12 +3,9 @@
 use strict;
 use warnings;
 
-use Test::More tests => 6;
-use Test::Exception;
+use Test::More;
 
-BEGIN {
-    use_ok('Path::Router');
-}
+use Path::Router;
 
 my $r = Path::Router->new;
 isa_ok($r, 'Path::Router');
@@ -22,3 +19,5 @@ isa_ok($r->match('math/simple/add')->target, 'Math::Simple::add');
 isa_ok($r->match('math/simple/sub')->target, 'Math::Simple::sub');
 isa_ok($r->match('math/simple/mul')->target, 'Math::Simple::mul');
 isa_ok($r->match('math/simple/div')->target, 'Math::Simple::div');
+
+done_testing;

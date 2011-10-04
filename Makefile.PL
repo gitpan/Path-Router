@@ -1,29 +1,63 @@
+
 use strict;
 use warnings;
-use inc::Module::Install;
 
-name 'Path-Router';
-all_from 'lib/Path/Router.pm';
-license 'perl';
 
-# prereqs
-requires 'Moose'            => '0.74';
-requires 'MooseX::Clone'    => '0.04';
-requires 'File::Spec::Unix' => 0;
 
-feature 'Path::Router::Shell',
-    -default         => 1,
-    'Term::ReadLine' => '0';
+use ExtUtils::MakeMaker 6.30;
 
-# things the tests need
-build_requires 'Test::More'      => '0.62';
-build_requires 'Test::Exception' => '0.21';
-build_requires 'Test::Deep';
-build_requires 'Test::Builder';
 
-tests_recursive;
 
-auto_install;
+my %WriteMakefileArgs = (
+  "ABSTRACT" => "A tool for routing paths",
+  "AUTHOR" => "Stevan Little <stevan\@iinteractive.com>",
+  "BUILD_REQUIRES" => {
+    "Test::Fatal" => 0,
+    "Test::More" => "0.88"
+  },
+  "CONFIGURE_REQUIRES" => {
+    "ExtUtils::MakeMaker" => "6.30"
+  },
+  "DISTNAME" => "Path-Router",
+  "EXE_FILES" => [],
+  "LICENSE" => "perl",
+  "NAME" => "Path::Router",
+  "PREREQ_PM" => {
+    "Data::Dumper" => 0,
+    "Eval::Closure" => "0.06",
+    "File::Spec::Unix" => 0,
+    "Moose" => "0.74",
+    "MooseX::Clone" => "0.04",
+    "Sub::Exporter" => 0,
+    "Term::ReadLine" => 0,
+    "Test::Builder" => 0,
+    "Test::Deep" => 0,
+    "Try::Tiny" => 0
+  },
+  "VERSION" => "0.11",
+  "test" => {
+    "TESTS" => "t/*.t"
+  }
+);
 
-WriteAll();
+
+unless ( eval { ExtUtils::MakeMaker->VERSION(6.56) } ) {
+  my $br = delete $WriteMakefileArgs{BUILD_REQUIRES};
+  my $pp = $WriteMakefileArgs{PREREQ_PM};
+  for my $mod ( keys %$br ) {
+    if ( exists $pp->{$mod} ) {
+      $pp->{$mod} = $br->{$mod} if $br->{$mod} > $pp->{$mod};
+    }
+    else {
+      $pp->{$mod} = $br->{$mod};
+    }
+  }
+}
+
+delete $WriteMakefileArgs{CONFIGURE_REQUIRES}
+  unless eval { ExtUtils::MakeMaker->VERSION(6.52) };
+
+WriteMakefile(%WriteMakefileArgs);
+
+
 

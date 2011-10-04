@@ -3,14 +3,12 @@
 use strict;
 use warnings;
 
-use Test::More tests => 17;
+use Test::More;
 use Test::Path::Router;
 
 use Moose::Util::TypeConstraints;
 
-BEGIN {
-    use_ok('Path::Router');
-}
+use Path::Router;
 
 subtype 'NumericMonth'
     => as 'Int'
@@ -28,12 +26,12 @@ can_ok($router, 'uri_for');
 $router->add_route('blog/:year/:month/:day' => (
     defaults       => {
         controller => 'blog',
-        action     => 'show_date',      
-    }, 
+        action     => 'show_date',
+    },
     validations => {
         year    => qr/\d{4}/,
         month   => 'NumericMonth',
-        day     => subtype('Int' => where { $_ <= 31 }),    
+        day     => subtype('Int' => where { $_ <= 31 }),
     }
 ));
 
@@ -51,10 +49,10 @@ $router->insert_route( 'blog/:action/:id' => (
     at => 2,
     defaults       => {
         controller => 'blog',
-    }, 
+    },
     validations => {
-        action  => qr/\D+/,        
-        id      => 'Int'    
+        action  => qr/\D+/,
+        id      => 'Int'
     }
 ));
 
@@ -81,14 +79,14 @@ routes_ok($router, {
     'blog' => {
         controller => 'blog',
         action     => 'index',
-    },    
+    },
     # blog/:year/:month/:day
     'blog/2006/12/5' => {
         controller => 'blog',
         action     => 'show_date',
         year       => 2006,
         month      => 12,
-        day        => 5,        
+        day        => 5,
     },
     # blog/:year/:month/:day
     'blog/1920/12/10' => {
@@ -96,8 +94,8 @@ routes_ok($router, {
         action     => 'show_date',
         year       => 1920,
         month      => 12,
-        day        => 10,        
-    },    
+        day        => 10,
+    },
     # blog/:action/:id
     'blog/edit/5' => {
         controller => 'blog',
@@ -108,17 +106,17 @@ routes_ok($router, {
         controller => 'blog',
         action     => 'show',
         id         => 123
-    }, 
+    },
     'blog/some_crazy_long_winded_action_name/12356789101112131151' => {
         controller => 'blog',
         action     => 'some_crazy_long_winded_action_name',
         id         => '12356789101112131151',
-    },    
+    },
     'blog/delete/5' => {
         controller => 'blog',
         action     => 'delete',
         id         => 5,
-    },        
+    },
     'test/x1' => {
         controller => 'test',
         x          => 'x1',
@@ -127,8 +125,4 @@ routes_ok($router, {
 },
 "... our routes are solid");
 
-1;
-
-
-
-
+done_testing;
