@@ -3,7 +3,7 @@ BEGIN {
   $Path::Router::Route::AUTHORITY = 'cpan:STEVAN';
 }
 {
-  $Path::Router::Route::VERSION = '0.11';
+  $Path::Router::Route::VERSION = '0.12';
 }
 use Moose;
 # ABSTRACT: An object to represent a route
@@ -257,7 +257,8 @@ sub generate_match_code {
             my $name = $variables[$i];
             $name =~ s/'/\\'/g;
             push @code, (
-                        B::perlstring($name) . ' => $' . ($i + 1) . ' || "",',
+                'defined($' . ($i + 1) . ') ? ' .
+                    '(' . B::perlstring($name) . ' => $' . ($i + 1) . ') : (),',
             );
         }
         push @code, (
@@ -338,7 +339,7 @@ Path::Router::Route - An object to represent a route
 
 =head1 VERSION
 
-version 0.11
+version 0.12
 
 =head1 DESCRIPTION
 
@@ -440,7 +441,7 @@ Stevan Little <stevan@iinteractive.com>
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011 by Infinity Interactive.
+This software is copyright (c) 2012 by Infinity Interactive.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

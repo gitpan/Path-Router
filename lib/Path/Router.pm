@@ -3,7 +3,7 @@ BEGIN {
   $Path::Router::AUTHORITY = 'cpan:STEVAN';
 }
 {
-  $Path::Router::VERSION = '0.11';
+  $Path::Router::VERSION = '0.12';
 }
 use Moose;
 # ABSTRACT: A tool for routing paths
@@ -332,7 +332,7 @@ Path::Router - A tool for routing paths
 
 =head1 VERSION
 
-version 0.11
+version 0.12
 
 =head1 SYNOPSIS
 
@@ -521,7 +521,7 @@ Stevan Little <stevan@iinteractive.com>
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011 by Infinity Interactive.
+This software is copyright (c) 2012 by Infinity Interactive.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

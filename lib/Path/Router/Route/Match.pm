@@ -3,7 +3,7 @@ BEGIN {
   $Path::Router::Route::Match::AUTHORITY = 'cpan:STEVAN';
 }
 {
-  $Path::Router::Route::Match::VERSION = '0.11';
+  $Path::Router::Route::Match::VERSION = '0.12';
 }
 use Moose;
 # ABSTRACT: The result of a Path::Router match
@@ -32,7 +32,7 @@ Path::Router::Route::Match - The result of a Path::Router match
 
 =head1 VERSION
 
-version 0.11
+version 0.12
 
 =head1 DESCRIPTION
 
@@ -94,7 +94,7 @@ Stevan Little <stevan@iinteractive.com>
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011 by Infinity Interactive.
+This software is copyright (c) 2012 by Infinity Interactive.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

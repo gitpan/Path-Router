@@ -27,7 +27,7 @@ t/010_example_cat_chained_URIs.t
 t/011_incorrect_validation_warning.t
 t/012_ambiguous_routes.t
 t/100_bug.t
-t/release-eol.t
-t/release-no-tabs.t
-t/release-pod-coverage.t
-t/release-pod-syntax.t
+xt/release/eol.t
+xt/release/no-tabs.t
+xt/release/pod-coverage.t
+xt/release/pod-syntax.t
