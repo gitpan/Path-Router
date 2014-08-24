@@ -2,9 +2,7 @@ package Path::Router::Route::Match;
 BEGIN {
   $Path::Router::Route::Match::AUTHORITY = 'cpan:STEVAN';
 }
-{
-  $Path::Router::Route::Match::VERSION = '0.12';
-}
+$Path::Router::Route::Match::VERSION = '0.13';
 use Moose;
 # ABSTRACT: The result of a Path::Router match
 
@@ -22,9 +20,11 @@ __PACKAGE__->meta->make_immutable;
 
 no Moose; 1;
 
-
+__END__
 
 =pod
+
+=encoding UTF-8
 
 =head1 NAME
 
@@ -32,7 +32,7 @@ Path::Router::Route::Match - The result of a Path::Router match
 
 =head1 VERSION
 
-version 0.12
+version 0.13
 
 =head1 DESCRIPTION
 
@@ -94,13 +94,9 @@ Stevan Little <stevan@iinteractive.com>
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2012 by Infinity Interactive.
+This software is copyright (c) 2014 by Infinity Interactive.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.
 
 =cut
-
-
-__END__
-

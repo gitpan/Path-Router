@@ -2,9 +2,7 @@ package Path::Router::Route;
 BEGIN {
   $Path::Router::Route::AUTHORITY = 'cpan:STEVAN';
 }
-{
-  $Path::Router::Route::VERSION = '0.12';
-}
+$Path::Router::Route::VERSION = '0.13';
 use Moose;
 # ABSTRACT: An object to represent a route
 
@@ -50,7 +48,7 @@ has 'components' => (
     is      => 'ro',
     isa     => 'ArrayRef[Str]',
     lazy    => 1,
-    default => sub { [ grep {$_} split '/' => (shift)->path ] }
+    default => sub { [ grep {defined && length} split '/' => (shift)->path ] }
 );
 
 has 'length' => (
@@ -233,7 +231,7 @@ sub generate_match_code {
 
     $regexp[0] =~ s/^\\\///;
     my $regexp = '';
-    while (my $piece = pop @regexp) {
+    while (defined(my $piece = pop @regexp)) {
         $regexp = "(?:$piece$regexp)";
     }
 
@@ -329,9 +327,11 @@ __PACKAGE__->meta->make_immutable;
 
 no Moose; 1;
 
-
+__END__
 
 =pod
+
+=encoding UTF-8
 
 =head1 NAME
 
@@ -339,7 +339,7 @@ Path::Router::Route - An object to represent a route
 
 =head1 VERSION
 
-version 0.12
+version 0.13
 
 =head1 DESCRIPTION
 
@@ -441,13 +441,9 @@ Stevan Little <stevan@iinteractive.com>
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2012 by Infinity Interactive.
+This software is copyright (c) 2014 by Infinity Interactive.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.
 
 =cut
-
-
-__END__
-
